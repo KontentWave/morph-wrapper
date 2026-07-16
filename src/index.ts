@@ -1,3 +1,5 @@
+import { pathToFileURL } from "node:url";
+
 import { createMcpExpressApp } from "@modelcontextprotocol/express";
 import { toNodeHandler } from "@modelcontextprotocol/node";
 import { createMcpHandler } from "@modelcontextprotocol/server";
@@ -7,14 +9,21 @@ import { loadConfig } from "./config.js";
 import { RepoCacheService } from "./repo-cache.js";
 import { SearchService } from "./search-service.js";
 import { createServer } from "./server.js";
+import type { AppConfig } from "./types.js";
 
-async function main(): Promise<void> {
-  const config = loadConfig();
-  const repoCache = new RepoCacheService(config);
-  const searchService = new SearchService(
-    config.maxFileBytes,
-    config.searchResultLimit,
-  );
+interface HttpAppDependencies {
+  repoCache?: RepoCacheService;
+  searchService?: SearchService;
+}
+
+export function createHttpApp(
+  config: AppConfig,
+  dependencies: HttpAppDependencies = {},
+) {
+  const repoCache = dependencies.repoCache ?? new RepoCacheService(config);
+  const searchService =
+    dependencies.searchService ??
+    new SearchService(config.morphApiKey, config.searchResultLimit);
 
   const handler = createMcpHandler(
     () => createServer({ config, repoCache, searchService }),
@@ -43,6 +52,13 @@ async function main(): Promise<void> {
     void nodeHandler(request, response, request.body);
   });
 
+  return { app, handler };
+}
+
+async function main(): Promise<void> {
+  const config = loadConfig();
+  const { app, handler } = createHttpApp(config);
+
   const server = app.listen(config.port, config.bindHost, () => {
     process.stdout.write(
       `Morph GitHub MCP wrapper listening on http://${config.bindHost}:${config.port}/mcp\n`,
@@ -59,4 +75,16 @@ async function main(): Promise<void> {
   process.on("SIGTERM", () => void shutdown());
 }
 
-void main();
+if (isMainModule(import.meta.url)) {
+  void main();
+}
+
+function isMainModule(moduleUrl: string): boolean {
+  const entryPath = process.argv[1];
+
+  if (!entryPath) {
+    return false;
+  }
+
+  return moduleUrl === pathToFileURL(entryPath).href;
+}

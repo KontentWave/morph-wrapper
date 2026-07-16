@@ -5,13 +5,19 @@ import { join } from "node:path";
 import type { AppConfig, RepoCheckout } from "./types.js";
 import { GitClient } from "./git-client.js";
 
+export interface GitRunner {
+  run(args: string[], cwd?: string): Promise<string>;
+}
+
 export class RepoCacheService {
-  private readonly gitClient: GitClient;
   private readonly defaultBranchCache = new Map<string, string>();
 
-  public constructor(private readonly config: AppConfig) {
-    this.gitClient = new GitClient({ githubToken: config.githubToken });
-  }
+  public constructor(
+    private readonly config: AppConfig,
+    private readonly gitClient: GitRunner = new GitClient({
+      githubToken: config.githubToken,
+    }),
+  ) {}
 
   public async getDefaultBranch(repo: string): Promise<string> {
     const cached = this.defaultBranchCache.get(repo);

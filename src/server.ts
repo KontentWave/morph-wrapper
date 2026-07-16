@@ -55,7 +55,7 @@ export function createServer({
     "codebase_search",
     {
       description:
-        "Search an allowlisted repository branch using the current local search backend seam.",
+        "Search an allowlisted repository branch using Morph WarpGrep against the cached checkout.",
       inputSchema: z.object({
         repo: z.string().min(1),
         branch: z.string().min(1).optional(),
@@ -73,10 +73,7 @@ export function createServer({
       return textResult({
         repo: checkout.repo,
         branch: checkout.branch,
-        backend: config.morphApiKey
-          ? "local-fallback-with-morph-key-configured"
-          : "local-fallback",
-        note: "This scaffold currently uses a local lexical search backend behind the Morph integration seam.",
+        backend: "morph-warp-grep",
         matches,
       });
     },

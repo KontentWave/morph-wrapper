@@ -19,7 +19,7 @@ Serve a read-only MCP endpoint over HTTPS-capable HTTP that lets an authenticate
 - HTTP boundary: MCP SDK HTTP handler plus bearer auth middleware.
 - Policy boundary: allowlist validation and safe-path filtering.
 - GitHub boundary: local checkout cache that can clone/fetch only configured repos.
-- Search boundary: dedicated search service so a local fallback can be replaced with Morph/WarpGrep without reshaping the tool contract.
+- Search boundary: dedicated search service that invokes Morph WarpGrep against the cached checkout without reshaping the MCP tool contract.
 
 ## Cache strategy
 
@@ -36,6 +36,7 @@ Serve a read-only MCP endpoint over HTTPS-capable HTTP that lets an authenticate
 - The MCP surface does not register write, edit, delete, exec, or arbitrary filesystem tools.
 - Authentication is mandatory on the MCP route.
 
-## Known scaffold gap
+## Current implementation notes
 
-The search implementation currently uses a local lexical fallback. The intended production replacement is a Morph/WarpGrep-backed adapter operating on the cached checkout path.
+- `codebase_search` uses Morph WarpGrep through the Morph SDK and searches the local cached checkout path for the requested repo and branch.
+- The remaining major gaps are test coverage for branch-policy/cache behavior and end-to-end integration tests for the authenticated MCP route.

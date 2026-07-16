@@ -7,7 +7,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test": "tsx --test test/**/*.test.ts"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -16,6 +17,7 @@
     "@modelcontextprotocol/express": "latest",
     "@modelcontextprotocol/node": "latest",
     "@modelcontextprotocol/server": "latest",
+    "@morphllm/morphsdk": "^0.2.191",
     "express": "^5.1.0",
     "zod": "^4.1.5"
   },

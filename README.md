@@ -10,9 +10,9 @@ Initial scaffold for a read-only MCP server that exposes safe GitHub repository 
 - Isolated per-branch GitHub checkout cache.
 - Read-only `list_allowed_repos`, `codebase_search`, and `read_file` tool registration.
 - Secret/path filtering and bounded file reads.
-- Search backend seam with a local lexical implementation as the temporary adapter.
+- Morph WarpGrep-backed `codebase_search` against the cached repository checkout.
 
-The `codebase_search` implementation in this scaffold is intentionally split behind a service boundary. It currently uses a local lexical search fallback so the server can run end to end before the Morph/WarpGrep adapter is wired in.
+The `codebase_search` implementation is intentionally split behind a service boundary so the MCP tool contract stays stable while the underlying search backend evolves. The current implementation uses Morph WarpGrep against the local cached checkout path.
 
 ## Project layout
 
@@ -21,7 +21,7 @@ The `codebase_search` implementation in this scaffold is intentionally split beh
 - `src/config.ts`: environment parsing and allowlist loading.
 - `src/repo-cache.ts`: GitHub clone/fetch checkout cache.
 - `src/path-policy.ts`: path traversal and secret-file filtering.
-- `src/search-service.ts`: temporary local search backend.
+- `src/search-service.ts`: Morph WarpGrep-backed search adapter.
 - `.github/docs/architecture.md`: minimal architecture plan.
 - `.github/docs/adr/`: decision records for the main design constraints.
 
@@ -36,13 +36,16 @@ Required:
 Optional:
 
 - `GITHUB_TOKEN`
-- `MORPH_API_KEY`
 - `PORT`
 - `BIND_HOST`
 - `ALLOWED_HOSTS`
 - `ALLOWED_ORIGINS`
 - `MAX_FILE_BYTES`
 - `SEARCH_RESULT_LIMIT`
+
+Required for `codebase_search`:
+
+- `MORPH_API_KEY`
 
 `ALLOWED_REPOS` supports either a comma-separated list such as `owner/repo-a,owner/repo-b` or a JSON array of objects for richer metadata:
 
