@@ -93,11 +93,20 @@ ChatGPT
 → Morph/WarpGrep `codebase_search`
 → sanitized results back to ChatGPT
 
+## Current status
+
+- authenticated MCP HTTP endpoint is implemented
+- GitHub-backed per-branch cache paths are implemented
+- Morph/WarpGrep-backed `codebase_search` is implemented against the cached checkout path
+- read-only `list_allowed_repos`, `codebase_search`, and `read_file` tools are implemented
+- automated tests currently cover MCP bearer auth, repo-cache clone/fetch/default-branch behavior, and branch allowlist enforcement
+- remaining validation gaps are dedicated `read_file` and path-policy tests, a `tools/list` contract test, and deployment-level HTTPS verification
+
 ## Repository cache behavior
 
 - Clone allowlisted repos into local cache directory.
 - Fetch updates on demand.
-- Checkout requested branch in isolated worktree or safe cache path.
+- Checkout requested branch in an isolated per-branch cache path.
 - Prefer shallow fetch where practical.
 - Never mutate remote repositories.
 

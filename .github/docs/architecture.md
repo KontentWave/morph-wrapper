@@ -39,4 +39,5 @@ Serve a read-only MCP endpoint over HTTPS-capable HTTP that lets an authenticate
 ## Current implementation notes
 
 - `codebase_search` uses Morph WarpGrep through the Morph SDK and searches the local cached checkout path for the requested repo and branch.
-- The remaining major gaps are test coverage for branch-policy/cache behavior and end-to-end integration tests for the authenticated MCP route.
+- automated tests cover branch allowlist resolution, repo-cache clone/fetch/reset behavior, default-branch caching, and authenticated MCP route access
+- the remaining major gaps are dedicated `read_file` and path-policy tests, a `tools/list` contract test for the exposed read-only tool set, and deployment-level HTTPS validation

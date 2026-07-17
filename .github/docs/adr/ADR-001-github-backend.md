@@ -34,4 +34,9 @@ Negative:
 
 ## Follow-up
 
+Current status:
+
+- isolated per-branch cache paths are implemented
+- clone, fetch, reset, and default-branch caching behavior have automated coverage
+
 If cache size becomes material, move from per-branch shallow clones to a shared mirror plus worktrees without changing the MCP tool contract.

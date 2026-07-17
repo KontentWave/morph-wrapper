@@ -32,4 +32,11 @@ Negative:
 
 ## Follow-up
 
-Add contract tests that assert the tool list is stable and contains no mutation surfaces.
+Current status:
+
+- the server registers only `list_allowed_repos`, `codebase_search`, and `read_file`
+- authenticated MCP route tests are in place
+
+Still needed:
+
+- a dedicated `tools/list` contract test that asserts the exposed tool set stays read-only and stable

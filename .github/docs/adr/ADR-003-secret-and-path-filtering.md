@@ -32,4 +32,11 @@ Negative:
 
 ## Follow-up
 
-Expand the denylist with repository-specific patterns only when a justified need appears, and keep the defaults conservative.
+Current status:
+
+- path normalization, secret-like path filtering, binary detection, and file-size limits are implemented on the `read_file` path
+
+Still needed:
+
+- dedicated automated tests for `read_file` and path-policy edge cases
+- repository-specific denylist expansion only when a justified need appears

@@ -19,7 +19,6 @@
 
 ## Last inspection notes
 
-- 2026-07-16: Repository is currently standalone and scaffold-only; no cross-plugin hooks or shared tables are present.
-- 2026-07-16: Initial implementation plan depends on MCP SDK HTTP serving, GitHub-backed checkout cache, and a replaceable search backend seam for future Morph integration.
-- 2026-07-16: `codebase_search` now uses Morph WarpGrep through `@morphllm/morphsdk` against the cached local checkout path.
-- 2026-07-16: `npm audit` reports 31 vulnerabilities after adding Morph SDK; current wrapper usage does not import Morph tracing APIs, so the main high-severity findings appear dormant unless tracing is enabled upstream or in future code.
+- 2026-07-17: Wrapper now includes an authenticated MCP HTTP entrypoint, isolated GitHub branch cache paths, Morph-backed `codebase_search`, and bounded `read_file` access.
+- 2026-07-17: Automated tests currently cover MCP bearer auth, repo-cache clone/fetch/default-branch behavior, and branch allowlist enforcement.
+- 2026-07-17: `npm audit` reports 31 vulnerabilities after adding Morph SDK; current wrapper usage does not import Morph tracing APIs, so the main high-severity findings appear dormant unless tracing is enabled upstream or in future code.
