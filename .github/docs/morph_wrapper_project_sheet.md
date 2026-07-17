@@ -212,7 +212,8 @@ Status on 2026-07-17: passed through a Cloudflare quick tunnel using explicit no
 - Result caching for repeated local searches.
 - Keep `SearchService` as the stable boundary while moving concrete search backends behind provider-style internals.
 - Preserve local ripgrep as the default production backend unless an alternate provider meets the same security and audit posture.
-- If WarpGrep returns later, add a Morph-backed provider only behind explicit opt-in configuration.
+- Time-box a small Morph/WarpGrep provider experiment on a separate branch behind explicit opt-in configuration such as `SEARCH_BACKEND=morph`, while keeping `SEARCH_BACKEND=ripgrep` as the default validated MVP path.
+- Keep a Morph-backed provider only if it materially improves known noisy broad natural-language queries without introducing unacceptable dependency or audit risk.
 - Additional ranking refinements or a safer semantic search backend with an acceptable dependency posture.
 - GitHub App authentication instead of personal token.
 - Basic audit log for searched repos/branches.
