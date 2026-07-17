@@ -30,7 +30,19 @@ function createConfig(repoCacheDir: string): AppConfig {
 
 async function withTestServer(
   checkout: RepoCheckout,
-  callback: (helpers: {
+  optionsOrCallback:
+    | {
+        config?: AppConfig;
+        searchService?: { search: () => Promise<SearchMatch[]> };
+      }
+    | ((helpers: {
+        listTools: () => Promise<unknown>;
+        callTool: (
+          name: string,
+          args?: Record<string, unknown>,
+        ) => Promise<unknown>;
+      }) => Promise<void>),
+  callback?: (helpers: {
     listTools: () => Promise<unknown>;
     callTool: (
       name: string,
@@ -38,7 +50,14 @@ async function withTestServer(
     ) => Promise<unknown>;
   }) => Promise<void>,
 ): Promise<void> {
-  const config = createConfig(checkout.checkoutPath);
+  const options =
+    typeof optionsOrCallback === "function" ? {} : optionsOrCallback;
+  const run =
+    typeof optionsOrCallback === "function" ? optionsOrCallback : callback;
+
+  assert.ok(run);
+
+  const config = options.config ?? createConfig(checkout.checkoutPath);
   const server = createServer({
     config,
     repoCache: {
@@ -49,11 +68,11 @@ async function withTestServer(
         return checkout.branch;
       },
     } as never,
-    searchService: {
+    searchService: (options.searchService ?? {
       async search(): Promise<SearchMatch[]> {
         return [];
       },
-    } as never,
+    }) as never,
   });
   const [clientTransport, serverTransport] =
     InMemoryTransport.createLinkedPair();
@@ -151,7 +170,7 @@ async function withTestServer(
       params: {},
     });
 
-    await callback({
+    await run({
       async listTools() {
         const response = await send({
           jsonrpc: "2.0",
@@ -267,6 +286,82 @@ test("read_file returns requested lines from a safe text file", async () => {
     assert.equal(payload.endLine, 3);
     assert.equal(payload.content, "line two\nline three");
   });
+});
+
+test("read_file falls back to the discovered default branch when omitted", async () => {
+  const checkoutPath = await mkdtemp(
+    join(tmpdir(), "morph-wrapper-read-file-"),
+  );
+  await mkdir(join(checkoutPath, "src"), { recursive: true });
+  await writeFile(join(checkoutPath, "src", "index.ts"), "fallback branch\n");
+
+  const checkout = {
+    repo: "owner/repo",
+    branch: "main",
+    checkoutPath,
+  };
+  const config = {
+    ...createConfig(checkoutPath),
+    allowedRepos: [{ repo: "owner/repo" }],
+  };
+
+  await withTestServer(checkout, { config }, async ({ callTool }) => {
+    const result = await callTool("read_file", {
+      repo: "owner/repo",
+      path: "src/index.ts",
+    });
+    const payload = JSON.parse(extractToolText(result)) as {
+      branch: string;
+      content: string;
+    };
+
+    assert.equal(payload.branch, "main");
+    assert.equal(payload.content, "fallback branch\n");
+  });
+});
+
+test("codebase_search falls back to the discovered default branch when omitted", async () => {
+  const checkoutPath = await mkdtemp(
+    join(tmpdir(), "morph-wrapper-read-file-"),
+  );
+  const checkout = {
+    repo: "owner/repo",
+    branch: "main",
+    checkoutPath,
+  };
+  const config = {
+    ...createConfig(checkoutPath),
+    allowedRepos: [{ repo: "owner/repo" }],
+  };
+  let searchPath: string | undefined;
+
+  await withTestServer(
+    checkout,
+    {
+      config,
+      searchService: {
+        async search(checkoutRoot: string): Promise<SearchMatch[]> {
+          searchPath = checkoutRoot;
+          return [];
+        },
+      },
+    },
+    async ({ callTool }) => {
+      const result = await callTool("codebase_search", {
+        repo: "owner/repo",
+        query: "index",
+      });
+      const payload = JSON.parse(extractToolText(result)) as {
+        branch: string;
+        matches: SearchMatch[];
+      };
+
+      assert.equal(payload.branch, "main");
+      assert.deepEqual(payload.matches, []);
+    },
+  );
+
+  assert.equal(searchPath, checkoutPath);
 });
 
 test("read_file rejects secret-like, oversized, binary, and invalid-range requests", async () => {

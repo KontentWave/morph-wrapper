@@ -100,9 +100,11 @@ ChatGPT
 - local-ripgrep-backed `codebase_search` is implemented against the cached checkout path
 - read-only `list_allowed_repos`, `codebase_search`, and `read_file` tools are implemented
 - automated tests now cover MCP bearer auth, repo-cache clone/fetch/default-branch behavior, branch allowlist enforcement, local search ranking and no-match behavior, `read_file`, path-policy edge cases, and a `tools/list` contract test
+- `codebase_search` and `read_file` now fall back to the repository's discovered default branch when callers omit `branch`
 - non-loopback deployment config now requires explicit non-wildcard `ALLOWED_HOSTS` and `ALLOWED_ORIGINS`
 - Morph SDK was removed to satisfy zero-known-vulnerability deployment policy; `rg` on `PATH` is now the runtime prerequisite for `codebase_search`
-- remaining validation gap is deployment-level HTTPS verification, plus live evaluation of search-result quality on representative repositories
+- live smoke tests passed against `KontentWave/piwigo-2FA-cust-plugin`, `KontentWave/piwigo-owner-profile-plugin`, and `KontentWave/piwigo-community`
+- remaining validation gap is deployment-level HTTPS verification, plus possible ranking refinement for broad natural-language queries
 
 ## Repository cache behavior
 
@@ -151,6 +153,7 @@ PORT=3000
 
 - `list_allowed_repos` returns only configured repos.
 - `codebase_search` works on an allowed repo/branch.
+- `codebase_search` and `read_file` fall back to the discovered default branch when `branch` is omitted.
 - `codebase_search` rejects non-allowlisted repo.
 - `codebase_search` returns useful ranked matches on representative repositories.
 - `read_file` reads normal source files.
@@ -158,10 +161,26 @@ PORT=3000
 - No MCP tool can write files or execute shell commands.
 - Server works behind HTTPS tunnel or deployed HTTPS endpoint.
 
+## Live smoke findings
+
+Smoke-tested on 2026-07-17 against public GitHub repositories:
+
+- `KontentWave/piwigo-2FA-cust-plugin`
+- `KontentWave/piwigo-owner-profile-plugin`
+- `KontentWave/piwigo-community`
+
+Observed behavior:
+
+- `list_allowed_repos` returned all three repositories with discovered default branch `main`.
+- omitted-branch `codebase_search` and `read_file` calls worked after adding default-branch fallback through the repo cache.
+- narrow code-oriented queries such as `add photos upload` and `twofactor profile` returned relevant implementation files near the top.
+- broader natural-language queries such as `owner profile user metadata` and `two factor authentication login code` returned relevant files, but generic include files and tests could outrank more focused implementation files because ranking is still driven by matched-term counts and hit volume.
+- `read_file` successfully read `main.inc.php` from `KontentWave/piwigo-community` on the discovered default branch.
+
 ## Recommended post-push checks
 
-- Run live smoke tests against representative allowlisted repositories and keep examples of good and weak queries.
-- Tune local search ranking if live use shows noisy results for broad natural-language queries.
+- Keep a small set of known-good and known-noisy live queries for regression checks as ranking changes.
+- Tune local search ranking if live use shows noisy results for broad natural-language queries, especially by down-weighting generic helper or test files and promoting more path-specific implementation files.
 - Add or refine deployment notes if operators need an explicit reminder that `rg` is a required host dependency.
 - Validate the HTTPS deployment path outside local loopback before calling the wrapper production-ready.
 

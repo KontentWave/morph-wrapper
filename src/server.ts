@@ -19,6 +19,22 @@ interface ServerDependencies {
   searchService: SearchService;
 }
 
+async function resolveToolTarget(
+  config: AppConfig,
+  repoCache: RepoCacheService,
+  repo: string,
+  branch?: string,
+) {
+  const requestedBranch = branch?.trim();
+
+  if (requestedBranch) {
+    return resolveRepoTarget(config.allowedRepos, repo, requestedBranch);
+  }
+
+  const defaultBranch = await repoCache.getDefaultBranch(repo);
+  return resolveRepoTarget(config.allowedRepos, repo, defaultBranch);
+}
+
 export function createServer({
   config,
   repoCache,
@@ -63,7 +79,7 @@ export function createServer({
       }),
     },
     async ({ repo, branch, query }) => {
-      const target = resolveRepoTarget(config.allowedRepos, repo, branch);
+      const target = await resolveToolTarget(config, repoCache, repo, branch);
       const checkout = await repoCache.ensureCheckout(
         target.config.repo,
         target.branch,
@@ -99,7 +115,7 @@ export function createServer({
       start_line: startLine,
       end_line: endLine,
     }) => {
-      const target = resolveRepoTarget(config.allowedRepos, repo, branch);
+      const target = await resolveToolTarget(config, repoCache, repo, branch);
       const checkout = await repoCache.ensureCheckout(
         target.config.repo,
         target.branch,
