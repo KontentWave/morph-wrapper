@@ -20,9 +20,9 @@
 ## Risky couplings
 
 - Local search dependency: `codebase_search` now depends on `ripgrep` being installed on the host and available as `rg` on `PATH`.
-- Search backend contract: `src/search-service.ts` ranks `rg --json` matches into the stable MCP search-match shape, so changes to ranking heuristics or ripgrep JSON output will directly affect user-visible search output.
+- Search backend contract: `src/search-service.ts` keeps the stable MCP search-match shape while delegating local `rg --json` execution through an internal provider, so backend swaps can stay behind the same boundary.
 - Query-quality boundary: search results now depend on local tokenization, stop-word filtering, and simple term-count scoring rather than Morph relevance ranking.
-- Broad natural-language ranking bias: live smoke tests showed broad queries can elevate generic include files and test fixtures above the most task-specific implementation file because the scorer rewards matched-term coverage plus hit volume.
+- Broad natural-language ranking heuristic: the local scorer now caps hit-volume influence and adds boosts for implementation-like paths plus penalties for test or generic helper files, but this still needs live confirmation on representative repositories.
 - Default-branch resolution path: omitted `branch` requests now depend on `RepoCacheService.getDefaultBranch()` before repo-policy validation, so live GitHub default-branch discovery is part of the read/search contract even when allowlist entries omit `defaultBranch`.
 - Deployment boundary note: `src/config.ts` now rejects non-loopback binds unless explicit non-wildcard `ALLOWED_HOSTS` and `ALLOWED_ORIGINS` are configured, so deployment manifests and reverse-proxy headers are coupled to that config contract.
 
@@ -33,3 +33,4 @@
 - 2026-07-17: The Morph SDK runtime dependency was removed to satisfy zero-known-vulnerability deployment policy; search now runs through local `ripgrep` only.
 - 2026-07-17: Additional hardening now covers `read_file` path-policy edge cases, `tools/list` contract stability, and non-loopback config validation for host/origin allowlists.
 - 2026-07-17: Live smoke tests against three public Piwigo repositories confirmed omitted-branch fallback and showed that narrow code-oriented queries are useful while broader natural-language queries still produce some ranking noise.
+- 2026-07-17: Search internals now keep `SearchService` stable while routing ripgrep through a provider-style implementation and applying path-aware ranking penalties and boosts.

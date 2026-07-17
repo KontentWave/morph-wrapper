@@ -6,6 +6,7 @@ import type { SearchMatch } from "./types.js";
 
 const execFile = promisify(execFileCallback);
 const DEFAULT_MAX_BUFFER_BYTES = 8 * 1024 * 1024;
+const MAX_HIT_SCORE = 12;
 const QUERY_STOP_WORDS = new Set([
   "a",
   "an",
@@ -34,6 +35,38 @@ const QUERY_STOP_WORDS = new Set([
   "which",
   "with",
 ]);
+const TEST_PATH_SEGMENTS = new Set(["test", "tests", "__tests__", "spec"]);
+const IMPLEMENTATION_PATH_SEGMENTS = new Set([
+  "app",
+  "class",
+  "classes",
+  "include",
+  "includes",
+  "js",
+  "lib",
+  "src",
+  "template",
+  "templates",
+]);
+const GENERIC_HELPER_FILENAMES = new Set([
+  "bootstrap.php",
+  "common.js",
+  "common.ts",
+  "function.inc.php",
+  "functions.inc.php",
+  "helper.js",
+  "helper.php",
+  "helper.ts",
+  "helpers.js",
+  "helpers.php",
+  "helpers.ts",
+  "index.js",
+  "index.ts",
+  "util.js",
+  "util.ts",
+  "utils.js",
+  "utils.ts",
+]);
 
 interface RipgrepJsonMatch {
   type: "match";
@@ -51,8 +84,79 @@ interface CandidateMatch {
   totalHits: number;
 }
 
+interface SearchProvider {
+  search(
+    checkoutPath: string,
+    pattern: string,
+    searchTerms: string[],
+  ): Promise<Map<string, CandidateMatch>>;
+}
+
+class RipgrepSearchProvider implements SearchProvider {
+  public async search(
+    checkoutPath: string,
+    pattern: string,
+    searchTerms: string[],
+  ): Promise<Map<string, CandidateMatch>> {
+    if (!pattern) {
+      return new Map();
+    }
+
+    try {
+      const { stdout } = await execFile(
+        "rg",
+        [
+          "--json",
+          "--line-number",
+          "--smart-case",
+          "--glob",
+          "!node_modules",
+          "--glob",
+          "!.git",
+          pattern,
+          ".",
+        ],
+        {
+          cwd: checkoutPath,
+          maxBuffer: DEFAULT_MAX_BUFFER_BYTES,
+        },
+      );
+
+      return collectMatches(stdout, searchTerms);
+    } catch (error) {
+      const execError = error as NodeJS.ErrnoException & {
+        stdout?: string | Buffer;
+        stderr?: string | Buffer;
+        code?: number | string;
+      };
+      const exitCode =
+        typeof execError.code === "number" ? execError.code : undefined;
+
+      if (exitCode === 1) {
+        const stdout = stringifyExecOutput(execError.stdout);
+        return collectMatches(stdout, searchTerms);
+      }
+
+      if (execError.code === "ENOENT") {
+        throw new AppError(
+          "ripgrep (rg) is required to execute codebase_search.",
+          500,
+        );
+      }
+
+      throw new AppError(
+        `Local codebase_search failed: ${stringifyExecOutput(execError.stderr) || execError.message}`,
+        502,
+      );
+    }
+  }
+}
+
 export class SearchService {
-  public constructor(private readonly resultLimit: number) {}
+  public constructor(
+    private readonly resultLimit: number,
+    private readonly provider: SearchProvider = new RipgrepSearchProvider(),
+  ) {}
 
   public async search(
     checkoutPath: string,
@@ -60,7 +164,11 @@ export class SearchService {
   ): Promise<SearchMatch[]> {
     const searchTerms = extractSearchTerms(query);
     const pattern = buildPattern(searchTerms);
-    const candidates = await runRipgrep(checkoutPath, pattern, searchTerms);
+    const candidates = await this.provider.search(
+      checkoutPath,
+      pattern,
+      searchTerms,
+    );
 
     return [...candidates.values()]
       .sort(compareCandidates)
@@ -92,64 +200,6 @@ function extractSearchTerms(query: string): string[] {
 function buildPattern(searchTerms: string[]): string {
   const escapedTerms = searchTerms.map(escapeRipgrepPattern);
   return escapedTerms.join("|");
-}
-
-async function runRipgrep(
-  checkoutPath: string,
-  pattern: string,
-  searchTerms: string[],
-): Promise<Map<string, CandidateMatch>> {
-  if (!pattern) {
-    return new Map();
-  }
-
-  try {
-    const { stdout } = await execFile(
-      "rg",
-      [
-        "--json",
-        "--line-number",
-        "--smart-case",
-        "--glob",
-        "!node_modules",
-        "--glob",
-        "!.git",
-        pattern,
-        ".",
-      ],
-      {
-        cwd: checkoutPath,
-        maxBuffer: DEFAULT_MAX_BUFFER_BYTES,
-      },
-    );
-
-    return collectMatches(stdout, searchTerms);
-  } catch (error) {
-    const execError = error as NodeJS.ErrnoException & {
-      stdout?: string | Buffer;
-      stderr?: string | Buffer;
-      code?: number | string;
-    };
-    const exitCode =
-      typeof execError.code === "number" ? execError.code : undefined;
-
-    if (exitCode === 1) {
-      const stdout = stringifyExecOutput(execError.stdout);
-      return collectMatches(stdout, searchTerms);
-    }
-
-    if (execError.code === "ENOENT") {
-      throw new AppError(
-        "ripgrep (rg) is required to execute codebase_search.",
-        500,
-      );
-    }
-
-    throw new AppError(
-      `Local codebase_search failed: ${stringifyExecOutput(execError.stderr) || execError.message}`,
-      502,
-    );
-  }
 }
 
 function collectMatches(
@@ -217,7 +267,82 @@ function compareCandidates(
 }
 
 function scoreCandidate(candidate: CandidateMatch): number {
-  return candidate.matchedTerms.size * 10 + candidate.totalHits;
+  const pathLower = candidate.path.toLowerCase();
+  const basename = pathLower.split("/").pop() ?? pathLower;
+
+  return (
+    candidate.matchedTerms.size * 10 +
+    Math.min(candidate.totalHits, MAX_HIT_SCORE) +
+    resolvePathMatchScore(pathLower, basename, candidate) -
+    resolvePathPenalty(pathLower, basename) +
+    resolveImplementationBonus(pathLower, basename)
+  );
+}
+
+function resolvePathMatchScore(
+  pathLower: string,
+  basename: string,
+  candidate: CandidateMatch,
+): number {
+  let score = 0;
+
+  for (const term of candidate.matchedTerms) {
+    if (basename.includes(term)) {
+      score += 5;
+      continue;
+    }
+
+    if (pathLower.includes(term)) {
+      score += 2;
+    }
+  }
+
+  if (score > 0 && !isTestPath(pathLower)) {
+    score += 2;
+  }
+
+  return score;
+}
+
+function resolvePathPenalty(pathLower: string, basename: string): number {
+  let penalty = 0;
+
+  if (isTestPath(pathLower)) {
+    penalty += 16;
+  }
+
+  if (GENERIC_HELPER_FILENAMES.has(basename)) {
+    penalty += 6;
+  }
+
+  return penalty;
+}
+
+function resolveImplementationBonus(
+  pathLower: string,
+  basename: string,
+): number {
+  if (isTestPath(pathLower) || GENERIC_HELPER_FILENAMES.has(basename)) {
+    return 0;
+  }
+
+  const segments = pathLower.split("/");
+  if (segments.some((segment) => IMPLEMENTATION_PATH_SEGMENTS.has(segment))) {
+    return 4;
+  }
+
+  return 0;
+}
+
+function isTestPath(pathLower: string): boolean {
+  const segments = pathLower.split("/");
+  return segments.some((segment) => {
+    if (TEST_PATH_SEGMENTS.has(segment)) {
+      return true;
+    }
+
+    return /(^|[._-])(test|spec)([._-]|$)/.test(segment);
+  });
 }
 
 function toSearchMatch(

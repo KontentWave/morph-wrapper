@@ -101,10 +101,12 @@ ChatGPT
 - read-only `list_allowed_repos`, `codebase_search`, and `read_file` tools are implemented
 - automated tests now cover MCP bearer auth, repo-cache clone/fetch/default-branch behavior, branch allowlist enforcement, local search ranking and no-match behavior, `read_file`, path-policy edge cases, and a `tools/list` contract test
 - `codebase_search` and `read_file` now fall back to the repository's discovered default branch when callers omit `branch`
+- `SearchService` remains the stable search boundary while local ripgrep now runs behind an internal provider implementation
 - non-loopback deployment config now requires explicit non-wildcard `ALLOWED_HOSTS` and `ALLOWED_ORIGINS`
 - Morph SDK was removed to satisfy zero-known-vulnerability deployment policy; `rg` on `PATH` is now the runtime prerequisite for `codebase_search`
 - live smoke tests passed against `KontentWave/piwigo-2FA-cust-plugin`, `KontentWave/piwigo-owner-profile-plugin`, and `KontentWave/piwigo-community`
-- remaining validation gap is deployment-level HTTPS verification, plus possible ranking refinement for broad natural-language queries
+- local ranking now caps hit-volume dominance and de-prioritizes generic helper or test paths for broad queries
+- remaining validation gap is deployment-level HTTPS verification, plus live confirmation that the revised ranking behaves better on representative repositories
 
 ## Repository cache behavior
 
@@ -174,13 +176,30 @@ Observed behavior:
 - `list_allowed_repos` returned all three repositories with discovered default branch `main`.
 - omitted-branch `codebase_search` and `read_file` calls worked after adding default-branch fallback through the repo cache.
 - narrow code-oriented queries such as `add photos upload` and `twofactor profile` returned relevant implementation files near the top.
-- broader natural-language queries such as `owner profile user metadata` and `two factor authentication login code` returned relevant files, but generic include files and tests could outrank more focused implementation files because ranking is still driven by matched-term counts and hit volume.
+- broader natural-language queries such as `owner profile user metadata` and `two factor authentication login code` initially showed ranking bias toward generic include files and tests; the local scorer now caps raw hit-volume influence and adds path-aware penalties and boosts to reduce that noise.
 - `read_file` successfully read `main.inc.php` from `KontentWave/piwigo-community` on the discovered default branch.
+
+## HTTPS deployment smoke checklist
+
+Run this against the real external HTTPS endpoint or tunnel, not only local loopback.
+
+- confirm the deployed endpoint is reachable over HTTPS
+- confirm bearer auth rejects missing or invalid tokens and accepts the configured token
+- confirm `initialize` succeeds through the external HTTPS path
+- confirm `tools/list` returns only `list_allowed_repos`, `codebase_search`, and `read_file`
+- confirm `list_allowed_repos` returns the configured allowlisted repositories
+- confirm omitted-branch `codebase_search` works through the deployed path on a representative allowlisted repository
+- confirm omitted-branch `read_file` works through the deployed path on a representative allowlisted repository
+- confirm non-allowlisted repository requests are rejected
+- confirm secret-like or traversal `read_file` paths are rejected
+- confirm deployed `ALLOWED_HOSTS` and `ALLOWED_ORIGINS` settings match the real hostname and caller origin
+- confirm reverse proxy or tunnel headers do not break MCP request handling or response streaming behavior
+- keep one successful external query/read transcript as release evidence
 
 ## Recommended post-push checks
 
 - Keep a small set of known-good and known-noisy live queries for regression checks as ranking changes.
-- Tune local search ranking if live use shows noisy results for broad natural-language queries, especially by down-weighting generic helper or test files and promoting more path-specific implementation files.
+- Re-run the representative live broad-query checks to confirm the new path-aware ranking reduces helper and test-file noise.
 - Add or refine deployment notes if operators need an explicit reminder that `rg` is a required host dependency.
 - Validate the HTTPS deployment path outside local loopback before calling the wrapper production-ready.
 
@@ -188,7 +207,10 @@ Observed behavior:
 
 - Per-repo branch allowlists.
 - Result caching for repeated local searches.
-- Stronger local ranking heuristics or a safer semantic search backend with an acceptable dependency posture.
+- Keep `SearchService` as the stable boundary while moving concrete search backends behind provider-style internals.
+- Preserve local ripgrep as the default production backend unless an alternate provider meets the same security and audit posture.
+- If WarpGrep returns later, add a Morph-backed provider only behind explicit opt-in configuration.
+- Additional ranking refinements or a safer semantic search backend with an acceptable dependency posture.
 - GitHub App authentication instead of personal token.
 - Basic audit log for searched repos/branches.
 

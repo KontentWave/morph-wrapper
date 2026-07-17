@@ -57,3 +57,49 @@ test("SearchService ignores common stop words and returns no matches when nothin
 
   assert.deepEqual(matches, []);
 });
+
+test("SearchService prefers path-specific implementation files over tests and helpers for broad queries", async () => {
+  const checkoutPath = await mkdtemp(
+    join(tmpdir(), "morph-wrapper-search-service-ranking-"),
+  );
+
+  await mkdir(join(checkoutPath, "src", "auth"), { recursive: true });
+  await mkdir(join(checkoutPath, "src", "helpers"), { recursive: true });
+  await mkdir(join(checkoutPath, "tests"), { recursive: true });
+
+  await writeFile(
+    join(checkoutPath, "src", "auth", "session-flow.ts"),
+    [
+      "export function buildSessionFlow(user: string) {",
+      "  return authenticateSession(user);",
+      "}",
+    ].join("\n"),
+  );
+  await writeFile(
+    join(checkoutPath, "src", "helpers", "index.ts"),
+    [
+      "export const authSessionFlowHelper = true;",
+      "export const authSessionFlowFallback = true;",
+      "export const authSessionFlowState = true;",
+      "export const authSessionFlowStore = true;",
+      "export const authSessionFlowAudit = true;",
+    ].join("\n"),
+  );
+  await writeFile(
+    join(checkoutPath, "tests", "session-flow.test.ts"),
+    [
+      "describe('session flow auth', () => {",
+      "  it('tracks session flow auth state', () => {",
+      "    expect('session flow auth').toBe('session flow auth');",
+      "  });",
+      "});",
+    ].join("\n"),
+  );
+
+  const service = new SearchService(5);
+  const matches = await service.search(checkoutPath, "session flow auth");
+
+  assert.equal(matches[0]?.path, "src/auth/session-flow.ts");
+  assert.equal(matches[1]?.path, "src/helpers/index.ts");
+  assert.equal(matches[2]?.path, "tests/session-flow.test.ts");
+});
