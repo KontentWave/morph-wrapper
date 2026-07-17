@@ -17,7 +17,6 @@
     "@modelcontextprotocol/express": "latest",
     "@modelcontextprotocol/node": "latest",
     "@modelcontextprotocol/server": "latest",
-    "@morphllm/morphsdk": "^0.2.191",
     "express": "^5.1.0",
     "zod": "^4.1.5"
   },

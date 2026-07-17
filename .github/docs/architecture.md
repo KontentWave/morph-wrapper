@@ -19,7 +19,7 @@ Serve a read-only MCP endpoint over HTTPS-capable HTTP that lets an authenticate
 - HTTP boundary: MCP SDK HTTP handler plus bearer auth middleware.
 - Policy boundary: allowlist validation and safe-path filtering.
 - GitHub boundary: local checkout cache that can clone/fetch only configured repos.
-- Search boundary: dedicated search service that invokes Morph WarpGrep against the cached checkout without reshaping the MCP tool contract.
+- Search boundary: dedicated search service that invokes local `ripgrep` against the cached checkout without reshaping the MCP tool contract.
 
 ## Cache strategy
 
@@ -39,7 +39,9 @@ Serve a read-only MCP endpoint over HTTPS-capable HTTP that lets an authenticate
 
 ## Current implementation notes
 
-- `codebase_search` uses Morph WarpGrep through the Morph SDK and searches the local cached checkout path for the requested repo and branch.
+- `codebase_search` uses local `ripgrep` against the cached checkout path for the requested repo and branch.
+- the current integration no longer depends on the Morph SDK; the remaining runtime dependency for search is that `rg` must be present on the server host.
 - automated tests cover branch allowlist resolution, repo-cache clone/fetch/reset behavior, default-branch caching, and authenticated MCP route access
+- automated tests now cover local search ranking and no-match behavior for `codebase_search`
 - automated tests now cover `read_file`, path-policy edge cases, and a `tools/list` contract test for the exposed read-only tool set
-- the remaining major gap is deployment-level HTTPS validation, plus ongoing review of dependency audit findings and repository-specific secret denylist tuning
+- the remaining major gap is deployment-level HTTPS validation, plus ongoing repository-specific secret denylist tuning

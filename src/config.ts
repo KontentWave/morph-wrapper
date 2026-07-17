@@ -31,7 +31,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     port: parseInteger(env.PORT, 3000),
     bindHost,
     authToken,
-    morphApiKey: optionalTrim(env.MORPH_API_KEY),
     githubToken: optionalTrim(env.GITHUB_TOKEN),
     repoCacheDir,
     allowedRepos,

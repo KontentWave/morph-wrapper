@@ -9,7 +9,6 @@ export interface AppConfig {
   port: number;
   bindHost: string;
   authToken: string;
-  morphApiKey?: string;
   githubToken?: string;
   repoCacheDir: string;
   allowedRepos: AllowedRepoConfig[];

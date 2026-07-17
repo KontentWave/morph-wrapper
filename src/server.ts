@@ -55,7 +55,7 @@ export function createServer({
     "codebase_search",
     {
       description:
-        "Search an allowlisted repository branch using Morph WarpGrep against the cached checkout.",
+        "Search an allowlisted repository branch using local ripgrep against the cached checkout.",
       inputSchema: z.object({
         repo: z.string().min(1),
         branch: z.string().min(1).optional(),
@@ -73,7 +73,7 @@ export function createServer({
       return textResult({
         repo: checkout.repo,
         branch: checkout.branch,
-        backend: "morph-warp-grep",
+        backend: "local-ripgrep",
         matches,
       });
     },

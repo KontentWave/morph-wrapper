@@ -22,8 +22,7 @@ export function createHttpApp(
 ) {
   const repoCache = dependencies.repoCache ?? new RepoCacheService(config);
   const searchService =
-    dependencies.searchService ??
-    new SearchService(config.morphApiKey, config.searchResultLimit);
+    dependencies.searchService ?? new SearchService(config.searchResultLimit);
 
   const handler = createMcpHandler(
     () => createServer({ config, repoCache, searchService }),

@@ -10,9 +10,9 @@ Initial scaffold for a read-only MCP server that exposes safe GitHub repository 
 - Isolated per-branch GitHub checkout cache.
 - Read-only `list_allowed_repos`, `codebase_search`, and `read_file` tool registration.
 - Secret/path filtering and bounded file reads.
-- Morph WarpGrep-backed `codebase_search` against the cached repository checkout.
+- Local `ripgrep`-backed `codebase_search` against the cached repository checkout.
 
-The `codebase_search` implementation is intentionally split behind a service boundary so the MCP tool contract stays stable while the underlying search backend evolves. The current implementation uses Morph WarpGrep against the local cached checkout path.
+The `codebase_search` implementation is intentionally split behind a service boundary so the MCP tool contract stays stable while the underlying search backend evolves. The current implementation uses local `ripgrep` against the cached checkout path.
 
 ## Project layout
 
@@ -21,7 +21,7 @@ The `codebase_search` implementation is intentionally split behind a service bou
 - `src/config.ts`: environment parsing and allowlist loading.
 - `src/repo-cache.ts`: GitHub clone/fetch checkout cache.
 - `src/path-policy.ts`: path traversal and secret-file filtering.
-- `src/search-service.ts`: Morph WarpGrep-backed search adapter.
+- `src/search-service.ts`: local `ripgrep`-backed search adapter.
 - `.github/docs/architecture.md`: minimal architecture plan.
 - `.github/docs/adr/`: decision records for the main design constraints.
 
@@ -44,10 +44,6 @@ Optional:
 - `SEARCH_RESULT_LIMIT`
 
 When `BIND_HOST` is anything other than `127.0.0.1`, `localhost`, or `::1`, you must also set explicit non-wildcard `ALLOWED_HOSTS` and `ALLOWED_ORIGINS` values. This keeps non-local deployments from accepting arbitrary Host or Origin headers by accident.
-
-Required for `codebase_search`:
-
-- `MORPH_API_KEY`
 
 `ALLOWED_REPOS` supports either a comma-separated list such as `owner/repo-a,owner/repo-b` or a JSON array of objects for richer metadata:
 
@@ -76,4 +72,4 @@ The MCP endpoint is served at `POST /mcp`. A simple health endpoint is exposed a
 
 - `read_file` blocks secret-like paths including `.env*`, `.envrc`, private keys, `.netrc`, `.git-credentials`, `.aws/credentials`, `.kube/config`, and Terraform state files.
 - External HTTP exposure is intentionally gated behind explicit host and origin allowlists.
-- `codebase_search` requires `MORPH_API_KEY`, and current Morph SDK transitive audit findings should be tracked separately before any broader deployment rollout.
+- `codebase_search` requires `ripgrep` (`rg`) to be available on the server path.

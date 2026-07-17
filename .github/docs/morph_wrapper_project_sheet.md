@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build a read-only MCP server that allows ChatGPT to inspect selected GitHub repositories/branches using Morph/WarpGrep-style `codebase_search`.
+Build a read-only MCP server that allows ChatGPT to inspect selected GitHub repositories and branches using safe local `codebase_search` against cached checkouts.
 
 The wrapper exposes only safe read/search tools. It must not expose write, edit, delete, shell execution, or unrestricted filesystem access.
 
@@ -15,7 +15,7 @@ The wrapper exposes only safe read/search tools. It must not expose write, edit,
 - Allowlisted repositories only
 - Branch-aware codebase search
 - Read-only file access
-- Morph/WarpGrep-powered semantic code search
+- Local `ripgrep`-backed code search
 - Basic authentication/token protection for MCP endpoint
 - Secret/path filtering
 
@@ -43,7 +43,7 @@ Output:
 
 ### `codebase_search`
 
-Runs Morph/WarpGrep search against an allowed GitHub repo/branch.
+Runs local `ripgrep` search against an allowed GitHub repo and branch.
 
 Input:
 
@@ -90,18 +90,19 @@ ChatGPT
 → HTTPS MCP endpoint
 → MCP wrapper
 → GitHub clone/fetch cache
-→ Morph/WarpGrep `codebase_search`
+→ local `ripgrep` `codebase_search`
 → sanitized results back to ChatGPT
 
 ## Current status
 
 - authenticated MCP HTTP endpoint is implemented
 - GitHub-backed per-branch cache paths are implemented
-- Morph/WarpGrep-backed `codebase_search` is implemented against the cached checkout path
+- local-ripgrep-backed `codebase_search` is implemented against the cached checkout path
 - read-only `list_allowed_repos`, `codebase_search`, and `read_file` tools are implemented
-- automated tests now cover MCP bearer auth, repo-cache clone/fetch/default-branch behavior, branch allowlist enforcement, `read_file`, path-policy edge cases, and a `tools/list` contract test
+- automated tests now cover MCP bearer auth, repo-cache clone/fetch/default-branch behavior, branch allowlist enforcement, local search ranking and no-match behavior, `read_file`, path-policy edge cases, and a `tools/list` contract test
 - non-loopback deployment config now requires explicit non-wildcard `ALLOWED_HOSTS` and `ALLOWED_ORIGINS`
-- remaining validation gap is deployment-level HTTPS verification, plus follow-up review of Morph SDK transitive audit findings
+- Morph SDK was removed to satisfy zero-known-vulnerability deployment policy; `rg` on `PATH` is now the runtime prerequisite for `codebase_search`
+- remaining validation gap is deployment-level HTTPS verification, plus live evaluation of search-result quality on representative repositories
 
 ## Repository cache behavior
 
@@ -127,17 +128,19 @@ ChatGPT
 Use environment variables:
 
 - `MCP_AUTH_TOKEN`
-- `MORPH_API_KEY`
 - `GITHUB_TOKEN`
 - `REPO_CACHE_DIR`
 - `ALLOWED_REPOS`
 - `PORT`
 
+Host runtime prerequisite:
+
+- `rg` must be installed and available on `PATH`
+
 Example:
 
 ```env
 MCP_AUTH_TOKEN=change-me
-MORPH_API_KEY=sk-...
 GITHUB_TOKEN=github_pat_...
 REPO_CACHE_DIR=/var/cache/morph-github-mcp
 ALLOWED_REPOS=owner/repo-a,owner/repo-b
@@ -149,16 +152,24 @@ PORT=3000
 - `list_allowed_repos` returns only configured repos.
 - `codebase_search` works on an allowed repo/branch.
 - `codebase_search` rejects non-allowlisted repo.
+- `codebase_search` returns useful ranked matches on representative repositories.
 - `read_file` reads normal source files.
 - `read_file` rejects `.env`, keys, tokens, and path traversal.
 - No MCP tool can write files or execute shell commands.
 - Server works behind HTTPS tunnel or deployed HTTPS endpoint.
 
+## Recommended post-push checks
+
+- Run live smoke tests against representative allowlisted repositories and keep examples of good and weak queries.
+- Tune local search ranking if live use shows noisy results for broad natural-language queries.
+- Add or refine deployment notes if operators need an explicit reminder that `rg` is a required host dependency.
+- Validate the HTTPS deployment path outside local loopback before calling the wrapper production-ready.
+
 ## Future considerations
 
-- Optional local WSL backend for private experiments.
 - Per-repo branch allowlists.
-- Result caching to reduce Morph token usage.
+- Result caching for repeated local searches.
+- Stronger local ranking heuristics or a safer semantic search backend with an acceptable dependency posture.
 - GitHub App authentication instead of personal token.
 - Basic audit log for searched repos/branches.
 
