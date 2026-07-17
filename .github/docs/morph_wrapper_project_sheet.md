@@ -106,7 +106,8 @@ ChatGPT
 - Morph SDK was removed to satisfy zero-known-vulnerability deployment policy; `rg` on `PATH` is now the runtime prerequisite for `codebase_search`
 - live smoke tests passed against `KontentWave/piwigo-2FA-cust-plugin`, `KontentWave/piwigo-owner-profile-plugin`, and `KontentWave/piwigo-community`
 - local ranking now caps hit-volume dominance and de-prioritizes generic helper or test paths for broad queries
-- remaining validation gap is deployment-level HTTPS verification, plus live confirmation that the revised ranking behaves better on representative repositories
+- external HTTPS tunnel validation passed with bearer auth, host/origin enforcement, tool discovery, and representative omitted-branch `codebase_search` and `read_file` calls
+- remaining validation gap is live confirmation that the revised ranking behaves better on representative broad natural-language queries
 
 ## Repository cache behavior
 
@@ -196,12 +197,14 @@ Run this against the real external HTTPS endpoint or tunnel, not only local loop
 - confirm reverse proxy or tunnel headers do not break MCP request handling or response streaming behavior
 - keep one successful external query/read transcript as release evidence
 
+Status on 2026-07-17: passed through a Cloudflare quick tunnel using explicit non-loopback `ALLOWED_HOSTS` and `ALLOWED_ORIGINS` settings. External checks confirmed missing-token rejection, invalid-token rejection, wrong-origin rejection, successful HTTPS `initialize`, correct `tools/list` output, allowlisted repo listing, omitted-branch `codebase_search`, omitted-branch `read_file`, and rejection of non-allowlisted or blocked-path requests.
+
 ## Recommended post-push checks
 
 - Keep a small set of known-good and known-noisy live queries for regression checks as ranking changes.
 - Re-run the representative live broad-query checks to confirm the new path-aware ranking reduces helper and test-file noise.
 - Add or refine deployment notes if operators need an explicit reminder that `rg` is a required host dependency.
-- Validate the HTTPS deployment path outside local loopback before calling the wrapper production-ready.
+- Prefer a named tunnel or equivalent stable HTTPS deployment path before calling the wrapper production-ready beyond smoke-test use.
 
 ## Future considerations
 
