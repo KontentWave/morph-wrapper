@@ -35,9 +35,11 @@ Serve a read-only MCP endpoint over HTTPS-capable HTTP that lets an authenticate
 - `read_file` blocks path traversal, absolute paths, secret-like files, binaries, and oversized files.
 - The MCP surface does not register write, edit, delete, exec, or arbitrary filesystem tools.
 - Authentication is mandatory on the MCP route.
+- Non-loopback deployments must set explicit `ALLOWED_HOSTS` and `ALLOWED_ORIGINS`; wildcard exposure is rejected at config load time.
 
 ## Current implementation notes
 
 - `codebase_search` uses Morph WarpGrep through the Morph SDK and searches the local cached checkout path for the requested repo and branch.
 - automated tests cover branch allowlist resolution, repo-cache clone/fetch/reset behavior, default-branch caching, and authenticated MCP route access
-- the remaining major gaps are dedicated `read_file` and path-policy tests, a `tools/list` contract test for the exposed read-only tool set, and deployment-level HTTPS validation
+- automated tests now cover `read_file`, path-policy edge cases, and a `tools/list` contract test for the exposed read-only tool set
+- the remaining major gap is deployment-level HTTPS validation, plus ongoing review of dependency audit findings and repository-specific secret denylist tuning

@@ -43,6 +43,8 @@ Optional:
 - `MAX_FILE_BYTES`
 - `SEARCH_RESULT_LIMIT`
 
+When `BIND_HOST` is anything other than `127.0.0.1`, `localhost`, or `::1`, you must also set explicit non-wildcard `ALLOWED_HOSTS` and `ALLOWED_ORIGINS` values. This keeps non-local deployments from accepting arbitrary Host or Origin headers by accident.
+
 Required for `codebase_search`:
 
 - `MORPH_API_KEY`
@@ -69,3 +71,9 @@ npm run dev
 ```
 
 The MCP endpoint is served at `POST /mcp`. A simple health endpoint is exposed at `GET /healthz`.
+
+## Security notes
+
+- `read_file` blocks secret-like paths including `.env*`, `.envrc`, private keys, `.netrc`, `.git-credentials`, `.aws/credentials`, `.kube/config`, and Terraform state files.
+- External HTTP exposure is intentionally gated behind explicit host and origin allowlists.
+- `codebase_search` requires `MORPH_API_KEY`, and current Morph SDK transitive audit findings should be tracked separately before any broader deployment rollout.

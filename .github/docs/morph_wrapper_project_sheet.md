@@ -99,8 +99,9 @@ ChatGPT
 - GitHub-backed per-branch cache paths are implemented
 - Morph/WarpGrep-backed `codebase_search` is implemented against the cached checkout path
 - read-only `list_allowed_repos`, `codebase_search`, and `read_file` tools are implemented
-- automated tests currently cover MCP bearer auth, repo-cache clone/fetch/default-branch behavior, and branch allowlist enforcement
-- remaining validation gaps are dedicated `read_file` and path-policy tests, a `tools/list` contract test, and deployment-level HTTPS verification
+- automated tests now cover MCP bearer auth, repo-cache clone/fetch/default-branch behavior, branch allowlist enforcement, `read_file`, path-policy edge cases, and a `tools/list` contract test
+- non-loopback deployment config now requires explicit non-wildcard `ALLOWED_HOSTS` and `ALLOWED_ORIGINS`
+- remaining validation gap is deployment-level HTTPS verification, plus follow-up review of Morph SDK transitive audit findings
 
 ## Repository cache behavior
 
@@ -119,6 +120,7 @@ ChatGPT
 - No shell execution exposed as an MCP tool.
 - Logs must not contain secrets.
 - MCP endpoint must require authentication unless used only in private tunnel testing.
+- Non-loopback deployments must set explicit `ALLOWED_HOSTS` and `ALLOWED_ORIGINS` values.
 
 ## Configuration
 

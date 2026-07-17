@@ -35,8 +35,8 @@ Negative:
 Current status:
 
 - path normalization, secret-like path filtering, binary detection, and file-size limits are implemented on the `read_file` path
+- the default denylist now covers `.envrc`, `.netrc`, `.git-credentials`, `.kube/config`, and Terraform state files in addition to the earlier secret-like patterns
 
 Still needed:
 
-- dedicated automated tests for `read_file` and path-policy edge cases
 - repository-specific denylist expansion only when a justified need appears

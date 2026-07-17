@@ -36,7 +36,4 @@ Current status:
 
 - the server registers only `list_allowed_repos`, `codebase_search`, and `read_file`
 - authenticated MCP route tests are in place
-
-Still needed:
-
-- a dedicated `tools/list` contract test that asserts the exposed tool set stays read-only and stable
+- a dedicated `tools/list` contract test now asserts that the exposed tool set stays read-only and stable

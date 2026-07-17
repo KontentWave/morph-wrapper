@@ -5,13 +5,18 @@ import { AppError } from "./errors.js";
 
 const blockedNamePatterns = [
   /(^|\/)\.env(\..+)?$/i,
+  /(^|\/)\.envrc$/i,
   /(^|\/)id_(rsa|dsa|ecdsa|ed25519)(\.pub)?$/i,
   /(^|\/).+\.(pem|key|p12|pfx)$/i,
+  /(^|\/)\.netrc$/i,
+  /(^|\/)\.git-credentials$/i,
   /(^|\/).+\.(sqlite|db|dump|bak)$/i,
+  /(^|\/)terraform\.tfstate(\..+)?$/i,
   /(^|\/)(secrets?|credentials?)(\.|\/|$)/i,
   /(^|\/)\.npmrc$/i,
   /(^|\/)\.pypirc$/i,
   /(^|\/)\.aws\/credentials$/i,
+  /(^|\/)\.kube\/config$/i,
 ];
 
 export function normalizeSafeRelativePath(inputPath: string): string {

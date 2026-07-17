@@ -19,19 +19,24 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const allowedRepos = parseAllowedRepos(
     requireEnv(env.ALLOWED_REPOS, "ALLOWED_REPOS"),
   );
+  const bindHost = env.BIND_HOST?.trim() || "127.0.0.1";
+  const allowedHosts = parseOptionalList(env.ALLOWED_HOSTS);
+  const allowedOrigins = parseOptionalList(env.ALLOWED_ORIGINS);
+
+  validateExposureControls(bindHost, allowedHosts, allowedOrigins);
 
   mkdirSync(repoCacheDir, { recursive: true });
 
   return {
     port: parseInteger(env.PORT, 3000),
-    bindHost: env.BIND_HOST?.trim() || "127.0.0.1",
+    bindHost,
     authToken,
     morphApiKey: optionalTrim(env.MORPH_API_KEY),
     githubToken: optionalTrim(env.GITHUB_TOKEN),
     repoCacheDir,
     allowedRepos,
-    allowedHosts: parseOptionalList(env.ALLOWED_HOSTS),
-    allowedOrigins: parseOptionalList(env.ALLOWED_ORIGINS),
+    allowedHosts,
+    allowedOrigins,
     maxFileBytes: parseInteger(env.MAX_FILE_BYTES, 256_000),
     searchResultLimit: parseInteger(env.SEARCH_RESULT_LIMIT, 10),
   };
@@ -76,6 +81,43 @@ function parseOptionalList(value: string | undefined): string[] | undefined {
     .filter(Boolean);
 
   return items.length > 0 ? items : undefined;
+}
+
+function validateExposureControls(
+  bindHost: string,
+  allowedHosts: string[] | undefined,
+  allowedOrigins: string[] | undefined,
+): void {
+  if (isLoopbackHost(bindHost)) {
+    return;
+  }
+
+  if (!allowedHosts || allowedHosts.length === 0) {
+    throw new AppError(
+      "ALLOWED_HOSTS is required when BIND_HOST is not loopback.",
+      500,
+    );
+  }
+
+  if (!allowedOrigins || allowedOrigins.length === 0) {
+    throw new AppError(
+      "ALLOWED_ORIGINS is required when BIND_HOST is not loopback.",
+      500,
+    );
+  }
+
+  if (allowedHosts.includes("*") || allowedOrigins.includes("*")) {
+    throw new AppError(
+      "Wildcard ALLOWED_HOSTS and ALLOWED_ORIGINS are not permitted for non-loopback deployments.",
+      500,
+    );
+  }
+}
+
+function isLoopbackHost(bindHost: string): boolean {
+  return (
+    bindHost === "127.0.0.1" || bindHost === "::1" || bindHost === "localhost"
+  );
 }
 
 function parseAllowedRepos(raw: string): AllowedRepoConfig[] {
